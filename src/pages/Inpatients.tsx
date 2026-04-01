@@ -11,14 +11,12 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
   const [pets, setPets] = useState<any[]>([]);
   const [selectedInpatient, setSelectedInpatient] = useState<Inpatient | null>(null);
   const [medicalHistory, setMedicalHistory] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false);
   const [inpatientToDischarge, setInpatientToDischarge] = useState<Inpatient | null>(null);
   const [formData, setFormData] = useState<Partial<Inpatient>>({ petName: '', type: '🐶 犬类', owner: '', room: '', diagnosis: '', status: '观察中', doctorId: 1 });
 
   const fetchInpatients = useCallback(async () => {
-    setIsLoading(true);
     try {
       const [inRes, docRes, petRes] = await Promise.all([
         fetch(API_INPATIENTS).then(r => r.json()),
@@ -30,8 +28,6 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
       setPets(petRes || []);
     } catch (err) {
       console.error(err);
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -39,7 +35,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
     fetchInpatients();
   }, [fetchInpatients]);
 
-  const fetchLatestSOAP = async (petId: number) => {
+  const fetchLatestSOAP = async () => {
     try {
         // Since Inpatient doesn't have petId, we assume petName + owner check OR just search by petName
         // In a real system we'd use ID. We'll search by petName as fallback if ID missing.
@@ -53,7 +49,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
 
   useEffect(() => {
     if (selectedInpatient) {
-        fetchLatestSOAP(selectedInpatient.id);
+        fetchLatestSOAP();
     }
   }, [selectedInpatient]);
 
