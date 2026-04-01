@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import Dashboard from './pages/Dashboard';
@@ -102,31 +103,39 @@ export default function App() {
   };
 
   if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
+    return (
+      <>
+        <Login onLogin={handleLogin} />
+        <Analytics />
+      </>
+    );
   }
 
   return (
-    <div className="app-layout">
-      <Sidebar 
-        activeMenu={activeMenu} 
-        setActiveMenu={setActiveMenu} 
-        userRole={userRole} 
-        userName={userName}
-        onLogout={handleLogout}
-      />
-      
-      <div className="main-area">
-        <Topbar 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
-          onSearchFocus={handleGlobalSearchFocus}
-          onAddClick={handleQuickAdd}
-          showSearch={activeMenu === '宠物档案与CRM'}
+    <>
+      <div className="app-layout">
+        <Sidebar 
+          activeMenu={activeMenu} 
+          setActiveMenu={setActiveMenu} 
+          userRole={userRole} 
+          userName={userName}
+          onLogout={handleLogout}
         />
-        <div className="content-wrapper">
-          {renderContent()}
+        
+        <div className="main-area">
+          <Topbar 
+            searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
+            onSearchFocus={handleGlobalSearchFocus}
+            onAddClick={handleQuickAdd}
+            showSearch={activeMenu === '宠物档案与CRM'}
+          />
+          <div className="content-wrapper">
+            {renderContent()}
+          </div>
         </div>
       </div>
-    </div>
+      <Analytics />
+    </>
   );
 }
