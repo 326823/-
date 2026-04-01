@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Doctor } from '../types';
 
-const API_URL = 'http://localhost:5000/doctors';
+const API_URL = 'https://houduan-hlb1.onrender.com/doctors';
 
 export default function DoctorSchedule() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);

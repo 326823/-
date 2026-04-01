@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { PetRecord } from '../types';
 
-const API_PETS = 'http://localhost:5000/records';
-const API_LAB = 'http://localhost:5000/lab_results';
-const API_PACS = 'http://localhost:5000/imaging_studies';
+const API_PETS = 'https://houduan-hlb1.onrender.com/records';
+const API_LAB = 'https://houduan-hlb1.onrender.com/lab_results';
+const API_PACS = 'https://houduan-hlb1.onrender.com/imaging_studies';
 
 export default function Diagnostics() {
   const [pets, setPets] = useState<PetRecord[]>([]);

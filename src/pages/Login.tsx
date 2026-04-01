@@ -19,7 +19,7 @@ export default function Login({ onLogin }: LoginProps) {
     
     try {
       // 真实后端验证
-      const res = await fetch(`http://localhost:5000/users?username=${username}&password=${password}`);
+      const res = await fetch(`https://houduan-hlb1.onrender.com/users?username=${username}&password=${password}`);
       const data = await res.json();
       
       if (data && data.length > 0) {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PetRecord, Medicine } from '../types';
 
-const API_RECORDS = 'http://localhost:5000/records';
-const API_MEDS = 'http://localhost:5000/medicines';
+const API_RECORDS = 'https://houduan-hlb1.onrender.com/records';
+const API_MEDS = 'https://houduan-hlb1.onrender.com/medicines';
 
 export default function SOAPRecords() {
   const [pets, setPets] = useState<PetRecord[]>([]);
@@ -31,7 +31,7 @@ export default function SOAPRecords() {
   useEffect(() => {
     if (selectedPet) {
       // Fetch visit status for selected pet
-      fetch(`http://localhost:5000/medical_records?petId=${selectedPet.id}`)
+      fetch(`https://houduan-hlb1.onrender.com/medical_records?petId=${selectedPet.id}`)
         .then(res => res.json())
         .then(data => {
           setVisitStatus(prev => ({ ...prev, [selectedPet.id]: data.length > 0 ? '复诊' : '初诊' }));
@@ -99,7 +99,7 @@ export default function SOAPRecords() {
   const loadHistory = async () => {
     if (!selectedPet) return;
     try {
-      const res = await fetch(`http://localhost:5000/medical_records?petId=${selectedPet.id}&_sort=createdAt&_order=asc`);
+      const res = await fetch(`https://houduan-hlb1.onrender.com/medical_records?petId=${selectedPet.id}&_sort=createdAt&_order=asc`);
       const data = await res.json();
       // Add local visit number for display (1, 2, 3...)
       const mappedData = data.map((item: any, index: number) => ({
@@ -116,9 +116,9 @@ export default function SOAPRecords() {
   const deleteRecord = async (recordId: string | number) => {
     if (!window.confirm("确定要永久删除这条病历记录吗？此操作无法撤销。")) return;
     try {
-      await fetch(`http://localhost:5000/medical_records/${recordId}`, { method: 'DELETE' });
+      await fetch(`https://houduan-hlb1.onrender.com/medical_records/${recordId}`, { method: 'DELETE' });
       // Refresh list
-      const res = await fetch(`http://localhost:5000/medical_records?petId=${selectedPet?.id}&_sort=createdAt&_order=asc`);
+      const res = await fetch(`https://houduan-hlb1.onrender.com/medical_records?petId=${selectedPet?.id}&_sort=createdAt&_order=asc`);
       const data = await res.json();
       const mappedData = data.map((item: any, index: number) => ({
         ...item,
@@ -140,7 +140,7 @@ export default function SOAPRecords() {
     setIsSaveModalOpen(false);
 
     // Calculate current visit number for this pet
-    const historyRes = await fetch(`http://localhost:5000/medical_records?petId=${selectedPet.id}`);
+    const historyRes = await fetch(`https://houduan-hlb1.onrender.com/medical_records?petId=${selectedPet.id}`);
     const existingCount = (await historyRes.json()).length;
 
     const pureEmr = { ...currentEmr } as any;
@@ -156,7 +156,7 @@ export default function SOAPRecords() {
     };
 
     try {
-      const recordRes = await fetch('http://localhost:5000/medical_records', {
+      const recordRes = await fetch('https://houduan-hlb1.onrender.com/medical_records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(recordNode)
@@ -169,7 +169,7 @@ export default function SOAPRecords() {
         if (!currentMed) return;
         const newStock = Math.max(0, currentMed.stock - p.amount);
         const newStatus = newStock === 0 ? "断货" : newStock < 10 ? "预警" : "充足";
-        return fetch(`http://localhost:5000/medicines/${p.med.id}`, {
+        return fetch(`https://houduan-hlb1.onrender.com/medicines/${p.med.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ stock: Number(newStock.toFixed(2)), status: newStatus })

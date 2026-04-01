@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Inpatient, Doctor } from '../types';
 
-const API_INPATIENTS = 'http://localhost:5000/inpatients';
-const API_DOCTORS = 'http://localhost:5000/doctors';
-const API_SOAP = 'http://localhost:5000/medical_records';
+const API_INPATIENTS = 'https://houduan-hlb1.onrender.com/inpatients';
+const API_DOCTORS = 'https://houduan-hlb1.onrender.com/doctors';
+const API_SOAP = 'https://houduan-hlb1.onrender.com/medical_records';
 
 export default function Inpatients({ onNavigateToBilling }: { onNavigateToBilling: (data: any) => void }) {
   const [inpatients, setInpatients] = useState<Inpatient[]>([]);
@@ -21,7 +21,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
       const [inRes, docRes, petRes] = await Promise.all([
         fetch(API_INPATIENTS).then(r => r.json()),
         fetch(API_DOCTORS).then(r => r.json()),
-        fetch('http://localhost:5000/records').then(r => r.json())
+        fetch('https://houduan-hlb1.onrender.com/records').then(r => r.json())
       ]);
       setInpatients(inRes || []);
       setDoctors(docRes || []);

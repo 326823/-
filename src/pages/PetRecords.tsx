@@ -9,7 +9,7 @@ export interface PetRecordsRef {
   openModal: () => void;
 }
 
-const API_URL = 'http://localhost:5000/records';
+const API_URL = 'https://houduan-hlb1.onrender.com/records';
 
 const PetRecords = React.forwardRef<PetRecordsRef, PetRecordsProps>(({ searchQuery }, ref) => {
   const [records, setRecords] = useState<PetRecord[]>([]);

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Appointment } from '../types';
 
-const API_URL = 'http://localhost:5000/appointments';
-const DOCTORS_URL = 'http://localhost:5000/doctors';
+const API_URL = 'https://houduan-hlb1.onrender.com/appointments';
+const DOCTORS_URL = 'https://houduan-hlb1.onrender.com/doctors';
 
 export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);

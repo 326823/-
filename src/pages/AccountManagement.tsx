@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API_URL = 'http://localhost:5000/users';
+const API_URL = 'https://houduan-hlb1.onrender.com/users';
 
 export default function AccountManagement() {
   const [users, setUsers] = useState<any[]>([]);

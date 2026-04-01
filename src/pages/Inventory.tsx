@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Medicine } from '../types';
 
-const API_URL = 'http://localhost:5000/medicines';
+const API_URL = 'https://houduan-hlb1.onrender.com/medicines';
 
 export default function Inventory() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -32,7 +32,7 @@ export default function Inventory() {
   const fetchUsageDetails = async (med: Medicine) => {
     setSelectedMedForUsage(med);
     try {
-       const res = await fetch('http://localhost:5000/medical_records');
+       const res = await fetch('https://houduan-hlb1.onrender.com/medical_records');
        const records = await res.json();
        // Filter records where this med was prescribed
        const filtered = records.filter((r: any) => 
