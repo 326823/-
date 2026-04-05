@@ -21,13 +21,51 @@ export default function App() {
 
   const [activeMenu, setActiveMenu] = useState('首页看板');
   const [searchQuery, setSearchQuery] = useState('');
-  const [billingData, setBillingData] = useState<any>(null);
-  
   const petRecordsRef = useRef<PetRecordsRef>(null);
 
-  const handleNavigateToBilling = (data: any) => {
-    setBillingData(data);
-    setActiveMenu('收银结算');
+  const handleNavigateToBilling = async (data: any) => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const billId = `BILL-${timestamp}-${random}`;
+    
+    const prescriptions = data.prescriptions || [];
+    const newBill = {
+       id: billId,
+       petName: data.petName,
+       ownerName: data.ownerName,
+       ownerPhone: data.ownerPhone || '', // 用于推送给移动端
+       items: prescriptions.map((p: any) => ({
+          name: p.med?.name || '未知药品',
+          price: p.med?.price || 0,
+          amount: p.amount || 0,
+          unit: p.med?.unit || '项'
+       })),
+       total: prescriptions.reduce((sum: number, p: any) => sum + ((p.med?.price || 0) * (p.amount || 0)), 0) + 150.00,
+       date: new Date().toISOString().split('T')[0],
+       createdAt: new Date().toISOString(),
+       status: 'draft'
+    };
+
+    console.log("Pushing new Bill to Server:", newBill);
+
+    try {
+        const response = await fetch('https://houduan-hlb1.onrender.com/payments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newBill)
+        });
+        if (!response.ok) {
+            alert(`云端账单同步失败: 服务器返回 ${response.status} 错误。请确认 mock-server 是否已重启以识别 payments 终点。`);
+        } else {
+            const result = await response.json();
+            console.log("Server response for Bill sync:", result);
+        }
+        setActiveMenu('收银结算');
+    } catch (err) {
+        alert("无法连接 HIS 系统进行单据同步: " + err);
+        console.error("Failed to sync bill:", err);
+        setActiveMenu('收银结算');
+    }
   };
 
   const handleLogin = (role: string, name: string) => {
@@ -55,20 +93,15 @@ export default function App() {
     setTimeout(() => petRecordsRef.current?.openModal(), 0);
   };
 
-  // Map old route names and new route names smoothly
   const renderContent = () => {
     switch(activeMenu) {
-      // 1. Foundation
       case '首页看板': 
         return <Dashboard onNavigate={setActiveMenu} />;
       case '智能挂号排队': 
-        return <Appointments />;
       case '挂号预约': 
-        return <Appointments />; // fallback
+        return <Appointments />;
       case '医生排班': 
         return <DoctorSchedule />;
-      
-      // 2. Clinical
       case '宠物档案与CRM': 
         return <PetRecords ref={petRecordsRef} searchQuery={searchQuery} />;
       case '电子病历(SOAP)':
@@ -77,25 +110,18 @@ export default function App() {
         return <Diagnostics />;
       case '住院与手术': 
         return <Inpatients onNavigateToBilling={handleNavigateToBilling} />;
-
-      // 3. Supply & Billing
       case '收银结算':
-        return <Billing initialData={billingData} />;
+        return <Billing />;
       case '智能库存': 
         return <Inventory />;
-        
-      // 4. AI & Advanced
       case 'AI辅助医疗':
-        return <ComingSoon title="AI辅助辅助医疗引擎" icon="🤖" desc="集成大模型。医生输入『呕吐、细小阴性』即可由AI扩写为标准病历描述。支持X光片中的疑似肿瘤/骨折AI高亮初筛预警" onGoHome={() => setActiveMenu('首页看板')} />;
+        return <ComingSoon title="AI辅助辅助医疗引擎" icon="🤖" desc="集成大模型。支持X光片中的疑似肿瘤/骨折AI高亮初筛预警" onGoHome={() => setActiveMenu('首页看板')} />;
       case '远程音视频问诊':
-        return <ComingSoon title="远程医疗 (Telemedicine)" icon="💻" desc="基于 WebRTC 的音视频在线看诊流，允许术后复查客户呼入视频通话并同步病历记录" onGoHome={() => setActiveMenu('首页看板')} />;
+        return <ComingSoon title="远程医疗 (Telemedicine)" icon="💻" desc="基于 WebRTC 的在线看诊流" onGoHome={() => setActiveMenu('首页看板')} />;
       case 'IoT物联网监控':
-        return <ComingSoon title="物联网硬件监测 (IoT Integrations)" icon="📡" desc="同步宠物智能项圈（心率/睡眠数据）。对接基站式病房温湿度传感器，异常状态自动触发医生前台告警" onGoHome={() => setActiveMenu('首页看板')} />;
-
-      // 5. System Settings
+        return <ComingSoon title="物联网硬件监测 (IoT Integrations)" icon="📡" desc="同步宠物智能项圈数据" onGoHome={() => setActiveMenu('首页看板')} />;
       case '账号与鉴权管理':
-        return <AccountManagement />;
-
+        return <AccountManagement userRole={userRole} />;
       default: 
         return <Dashboard onNavigate={setActiveMenu} />;
     }

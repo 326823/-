@@ -10,7 +10,7 @@ export default function DoctorSchedule() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<Doctor | null>(null);
-  const [formData, setFormData] = useState<Partial<Doctor>>({ name: '', department: '内科', title: '医师', avatar: '👨‍⚕️', rating: 5.0, status: '出诊中', experience: '1年' });
+  const [formData, setFormData] = useState<Partial<Doctor>>({ name: '', department: '内科', title: '医师', avatar: '👨‍⚕️', rating: 5.0, status: '出诊中', experience: '1年', fee: 50 });
 
   useEffect(() => {
     fetchDoctors();
@@ -63,7 +63,7 @@ export default function DoctorSchedule() {
       setFormData({ ...doc });
     } else {
       setEditingDoc(null);
-      setFormData({ name: '', department: '内科', title: '医师', avatar: '👨‍⚕️', rating: 5.0, status: '出诊中', experience: '1年' });
+      setFormData({ name: '', department: '内科', title: '医师', avatar: '👨‍⚕️', rating: 5.0, status: '出诊中', experience: '1年', fee: 50 });
     }
     setIsModalOpen(true);
   };
@@ -167,6 +167,9 @@ export default function DoctorSchedule() {
                     </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
                       <span style={{fontWeight: 600, color: 'var(--text-main)'}}>{doc.department}</span> | {doc.title} | 执业{doc.experience}
+                    </p>
+                    <p style={{ color: 'var(--primary)', fontSize: '0.85rem', marginBottom: '12px', fontWeight: 600 }}>
+                      挂号费: ¥{doc.fee || 50}
                     </p>
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -273,15 +276,21 @@ export default function DoctorSchedule() {
                   </div>
                 </div>
                 
-                <div className="input-group">
-                  <label>指派今日初始状态</label>
-                  <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
-                    <option value="出诊中">🟢 出诊中 (就位前台候场)</option>
-                    <option value="手术中">🔴 手术中 (免打扰模式)</option>
-                    <option value="急救中">🚨 急救中</option>
-                    <option value="学术会">🟡 学术会</option>
-                    <option value="休息">⚫ 休假或轮空</option>
-                  </select>
+                <div className="form-row">
+                  <div className="input-group">
+                    <label>挂号费设置 (¥)</label>
+                    <input value={formData.fee} onChange={e => setFormData({...formData, fee: Number(e.target.value)})} type="number" min="0" step="0.01" required />
+                  </div>
+                  <div className="input-group">
+                    <label>指派今日初始状态</label>
+                    <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
+                      <option value="出诊中">🟢 出诊中 (就位前台候场)</option>
+                      <option value="手术中">🔴 手术中 (免打扰模式)</option>
+                      <option value="急救中">🚨 急救中</option>
+                      <option value="学术会">🟡 学术会</option>
+                      <option value="休息">⚫ 休假或轮空</option>
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">

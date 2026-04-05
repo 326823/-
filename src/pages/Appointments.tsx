@@ -12,27 +12,28 @@ export default function Appointments() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Partial<Appointment>>({ pet: '', owner: '', doctor: '', reason: '', isUrgent: false });
 
-  useEffect(() => {
-    const fetchAllData = async () => {
-      setIsLoading(true);
-      try {
-        const [aptRes, docRes] = await Promise.all([
-          fetch(API_URL),
-          fetch(DOCTORS_URL)
-        ]);
-        if (aptRes.ok) setAppointments(await aptRes.json());
-        if (docRes.ok) {
-          const docs = await docRes.json();
-          setDoctors(docs);
-          if (docs.length > 0) setFormData(f => ({ ...f, doctor: docs[0].name }));
-        }
-      } catch (err) {
-        console.error("加载数据失败:", err);
-      } finally {
-        setIsLoading(false);
+  const fetchAllData = async () => {
+    try {
+      const [aptRes, docRes] = await Promise.all([
+        fetch(API_URL),
+        fetch(DOCTORS_URL)
+      ]);
+      if (aptRes.ok) setAppointments(await aptRes.json());
+      if (docRes.ok) {
+        const docs = await docRes.json();
+        setDoctors(docs);
       }
-    };
+    } catch (err) {
+      console.error("轮询同步失败:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAllData();
+    const timer = setInterval(fetchAllData, 5000); 
+    return () => clearInterval(timer);
   }, []);
 
   const handleStatusChange = async (id: number, newStatus: string) => {

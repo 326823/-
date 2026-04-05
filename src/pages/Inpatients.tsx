@@ -14,7 +14,16 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDischargeModalOpen, setIsDischargeModalOpen] = useState(false);
   const [inpatientToDischarge, setInpatientToDischarge] = useState<Inpatient | null>(null);
-  const [formData, setFormData] = useState<Partial<Inpatient>>({ petName: '', type: '🐶 犬类', owner: '', room: '', diagnosis: '', status: '观察中', doctorId: 1 });
+  const [formData, setFormData] = useState<Partial<Inpatient>>({ petName: '', type: '🐶 犬类', owner: '', room: '', diagnosis: '', status: '观察中', doctorId: 1, phone: '' });
+  
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({
+    show: false, message: '', type: 'success'
+  });
+
+  const showNotification = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ show: true, message: msg, type });
+    setTimeout(() => setToast(prev => ({ ...prev, show: false })), 3000);
+  };
 
   const fetchInpatients = useCallback(async () => {
     try {
@@ -23,9 +32,9 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
         fetch(API_DOCTORS).then(r => r.json()),
         fetch('https://houduan-hlb1.onrender.com/records').then(r => r.json())
       ]);
-      setInpatients(inRes || []);
-      setDoctors(docRes || []);
-      setPets(petRes || []);
+      setInpatients(Array.isArray(inRes) ? inRes : []);
+      setDoctors(Array.isArray(docRes) ? docRes : []);
+      setPets(Array.isArray(petRes) ? petRes : []);
     } catch (err) {
       console.error(err);
     }
@@ -41,7 +50,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
         // In a real system we'd use ID. We'll search by petName as fallback if ID missing.
         const res = await fetch(`${API_SOAP}?petName=${selectedInpatient?.petName}&_sort=createdAt&_order=desc`);
         const data = await res.json();
-        setMedicalHistory(data || []);
+        setMedicalHistory(Array.isArray(data) ? data : []);
     } catch (err) {
         console.error("SOAP fetch failed", err);
     }
@@ -57,11 +66,15 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
     if (!inpatientToDischarge) return;
     try {
       // 1. Prepare billing data from latest SOAP record
+      const petRecord = pets.find(p => p.petName === inpatientToDischarge.petName);
       const billData = {
           petName: inpatientToDischarge.petName,
           ownerName: inpatientToDischarge.owner,
+          ownerPhone: inpatientToDischarge.phone || medicalHistory[0]?.ownerPhone || petRecord?.phone || '', 
           prescriptions: medicalHistory[0]?.prescriptions || []
       };
+      
+      console.log("Preparing Billing Data:", billData);
 
       // 2. Perform the physical discharge (delete from ward)
       await fetch(`${API_INPATIENTS}/${inpatientToDischarge.id}`, { method: 'DELETE' });
@@ -73,7 +86,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
       
       // 4. Navigate to Billing with data
       onNavigateToBilling(billData);
-      
+      showNotification('出院手续办理完毕，正在跳转结算中心...');
       setInpatientToDischarge(null);
     } catch {
       alert("出院办理失败");
@@ -82,19 +95,28 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
 
   const handleCreateInpatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-        ...formData,
-        admissionDate: new Date().toISOString().split('T')[0]
-    };
-    const res = await fetch(API_INPATIENTS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-        const created = await res.json();
-        setInpatients(prev => [...prev, created]);
-        setIsModalOpen(false);
+    if (!formData.petName) return alert("请选择待分配病房的宠病员");
+    
+    try {
+        const payload = {
+            ...formData,
+            admissionDate: new Date().toISOString().split('T')[0]
+        };
+        const res = await fetch(API_INPATIENTS, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            const created = await res.json();
+            setInpatients(prev => [...prev, created]);
+            setIsModalOpen(false);
+            showNotification('病房分配指令已向 HIS 核心系统下达 ✅');
+        } else {
+            throw new Error(`HIS 系统响应异常: ${res.status}`);
+        }
+    } catch (err) {
+        alert("指令提交失败: " + (err instanceof Error ? err.message : "网络错误"));
     }
   };
 
@@ -107,11 +129,18 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
     }
   };
 
-  const currentDoctor = doctors.find(d => d.id === selectedInpatient?.doctorId);
+  const currentDoctor = (Array.isArray(doctors) ? doctors : []).find(d => d.id === selectedInpatient?.doctorId);
 
   return (
     <div className="page-container" style={{ padding: '0', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', background: '#F8FAFC' }}>
       
+      {/* 🎊 全局 Toast */}
+      {toast.show && (
+        <div style={{ position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 10000, padding: '12px 24px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', border: `1px solid ${toast.type === 'success' ? '#10B981' : '#EF4444'}`, boxShadow: '0 20px 40px rgba(0,0,0,0.1)', animation: 'popIn 0.3s' }}>
+          <span style={{ fontWeight: 800, color: '#1E293B' }}>{toast.message}</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div style={{ background: '#fff', padding: '16px 32px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
         <div>
@@ -123,7 +152,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
                  <button onClick={() => setSelectedInpatient(null)} style={{ padding: '8px 16px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '10px', color: '#64748B', fontWeight: 700, cursor: 'pointer' }}>← 返回库区</button>
              )}
              <button onClick={() => {
-                setFormData({ petName: '', type: '🐶 犬类', owner: '', diagnosis: '', status: '观察中', doctorId: 1, room: `B-${Math.floor(Math.random()*99 + 1)}` });
+                setFormData({ petName: '', type: '🐶 犬类', owner: '', diagnosis: '', status: '观察中', doctorId: 1, room: `B-${Math.floor(Math.random()*99 + 1)}`, phone: '' });
                 setIsModalOpen(true);
              }} style={{ padding: '8px 20px', background: '#6366F1', border: 'none', borderRadius: '10px', color: '#fff', fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(99, 102, 241, 0.4)' }}>
                 🏥 新建病房工单
@@ -138,7 +167,7 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
             {!selectedInpatient ? (
                 // Ward Grid View
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-                   {inpatients.map(p => (
+                   {(Array.isArray(inpatients) ? inpatients : []).map(p => (
                        <div key={p.id} onClick={() => setSelectedInpatient(p)} className="inpatient-card" style={{ background: '#fff', borderRadius: '24px', padding: '24px', border: '1px solid #E2E8F0', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', position: 'relative', overflow: 'hidden' }}>
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '6px', height: '100%', background: getStatusColor(p.status) }}></div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
@@ -161,7 +190,10 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
                        </div>
                    ))}
                    {/* Empty Bed Placeholder */}
-                   <div onClick={() => setIsModalOpen(true)} style={{ background: 'transparent', borderRadius: '24px', padding: '24px', border: '2px dashed #CBD5E1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', cursor: 'pointer', minHeight: '200px' }}>
+                   <div onClick={() => {
+                        setFormData({ petName: '', type: '🐶 犬类', owner: '', diagnosis: '', status: '观察中', doctorId: 1, room: `C-${Math.floor(Math.random()*99 + 1)}`, phone: '' });
+                        setIsModalOpen(true);
+                   }} style={{ background: 'transparent', borderRadius: '24px', padding: '24px', border: '2px dashed #CBD5E1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', cursor: 'pointer', minHeight: '200px' }}>
                         <span style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🛏️</span>
                         <p style={{ fontWeight: 800 }}>空闲备用病室/隔离区</p>
                         <p style={{ fontSize: '0.8rem' }}>点击办理新入住手续</p>
@@ -294,92 +326,90 @@ export default function Inpatients({ onNavigateToBilling }: { onNavigateToBillin
         </div>
       </div>
 
-      {/* Creation Modal */}
+      {/* 🏥 录入新病房住院指令 - 深度美化版 */}
       {isModalOpen && (
-          <div className="overlay" style={{ zIndex: 1200 }} onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
-              <div className="modal" style={{ width: '600px', borderRadius: '24px', padding: '40px' }}>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '24px', color: '#1E293B' }}>📝 录入新病房住院指令</h2>
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s' }}>
+              <div style={{ background: '#fff', width: '640px', borderRadius: '40px', padding: '48px', boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4)', animation: 'popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+                     <div style={{ background: '#6366F120', width: '54px', height: '54px', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem' }}>🏥</div>
+                     <div>
+                        <h2 style={{ fontSize: '1.6rem', fontWeight: 950, margin: 0, color: '#1E293B', letterSpacing: '-0.5px' }}>签发住院监护指令</h2>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#64748B', fontWeight: 600 }}>指令生效后将实时同步至 ICU 监控大屏</p>
+                     </div>
+                  </div>
+
                   <form onSubmit={handleCreateInpatient}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                              <div className="input-group">
-                                  <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B', marginBottom: '8px', display: 'block' }}>选择关联宠物 (From EMR)</label>
+                      <div style={{ display: 'grid', gap: '24px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                              <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 900, color: '#94A3B8', marginBottom: '8px', display: 'block', textTransform: 'uppercase' }}>关联病员 (EMR 库)</label>
                                   <select 
-                                    className="form-input" 
-                                    style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }} 
+                                    style={{ width: '100%', padding: '14px', borderRadius: '14px', border: '2px solid #F1F5F9', background: '#F8FAFC', fontWeight: 700, outline: 'none' }} 
                                     value={formData.petName} 
                                     onChange={e => {
                                         const pet = pets.find(p => p.petName === e.target.value);
                                         if (pet) {
-                                            setFormData({
-                                                ...formData,
-                                                petName: pet.petName,
-                                                owner: pet.ownerName,
-                                                type: pet.type
-                                            });
+                                            setFormData({ ...formData, petName: pet.petName, owner: pet.ownerName, type: pet.type, phone: pet.phone || '' });
                                         }
                                     }} 
                                     required
                                   >
-                                      <option value="">-- 请选择病员 --</option>
+                                      <option value="">-- 点击挑选患者 --</option>
                                       {pets.map(p => (
                                           <option key={p.id} value={p.petName}>{p.petName} ({p.ownerName})</option>
                                       ))}
                                   </select>
                               </div>
-                              <div className="input-group">
-                                  <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B', marginBottom: '8px', display: 'block' }}>所属主人</label>
-                                  <input className="form-input" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFC' }} value={formData.owner} readOnly placeholder="选择宠物后自动带入" />
+                              <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 900, color: '#94A3B8', marginBottom: '8px', display: 'block', textTransform: 'uppercase' }}>专属床位/房号</label>
+                                  <div style={{ padding: '14px', borderRadius: '14px', background: '#EEF2FF', border: '2px solid #E0E7FF', color: '#6366F1', fontWeight: 900, fontSize: '1.1rem', textAlign: 'center' }}>
+                                     {formData.room}
+                                  </div>
                               </div>
                           </div>
                           
-                          <div className="input-group">
-                              <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B', marginBottom: '8px', display: 'block' }}>临床诊断结论</label>
-                              <input className="form-input" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }} value={formData.diagnosis} onChange={e => setFormData({...formData, diagnosis: e.target.value})} required placeholder="例如：急性胃扭转术后需观察" />
+                          <div>
+                              <label style={{ fontSize: '0.8rem', fontWeight: 900, color: '#94A3B8', marginBottom: '8px', display: 'block', textTransform: 'uppercase' }}>主诉/临床诊断摘要</label>
+                              <input style={{ width: '100%', padding: '14px', borderRadius: '14px', border: '2px solid #F1F5F9', outline: 'none', fontWeight: 700, transition: '0.2s' }} value={formData.diagnosis} onChange={e => setFormData({...formData, diagnosis: e.target.value})} required placeholder="例如：双侧肺叶渗出，需 24H 连续吸氧" />
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                              <div className="input-group">
-                                  <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B', marginBottom: '8px', display: 'block' }}>物种分类</label>
-                                  <input className="form-input" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFC' }} value={formData.type} readOnly placeholder="自动识别" />
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                              <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 900, color: '#94A3B8', marginBottom: '8px', display: 'block', textTransform: 'uppercase' }}>病患主人</label>
+                                  <input style={{ width: '100%', padding: '14px', borderRadius: '14px', border: '2px solid #F1F5F9', background: '#F8FAFC', color: '#64748B', fontWeight: 700 }} value={formData.owner} readOnly />
                               </div>
-                              <div className="input-group">
-                                  <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B', marginBottom: '8px', display: 'block' }}>预选房号</label>
-                                  <input className="form-input" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', background: '#F8FAFC' }} value={formData.room} readOnly />
+                              <div>
+                                  <label style={{ fontSize: '0.8rem', fontWeight: 900, color: '#94A3B8', marginBottom: '8px', display: 'block', textTransform: 'uppercase' }}>照管分级</label>
+                                  <select style={{ width: '100%', padding: '14px', borderRadius: '14px', border: `2px solid ${formData.status === '危重' ? '#FEE2E2' : '#F1F5F9'}`, fontWeight: 800, background: formData.status === '危重' ? '#FFF1F2' : '#fff', color: formData.status === '危重' ? '#E11D48' : '#1E293B' }} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
+                                      <option value="危重">🔴 危重阶梯照护 (ICU)</option>
+                                      <option value="观察中">🟡 标准床位 24H 观察</option>
+                                      <option value="稳定">🟢 恢复室 (等待出院)</option>
+                                  </select>
                               </div>
-                          </div>
-
-                          <div className="input-group">
-                              <label style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B', marginBottom: '8px', display: 'block' }}>分类照管等级</label>
-                              <select className="form-input" style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})}>
-                                  <option value="危重">🔴 危重阶梯照护 (ICU)</option>
-                                  <option value="观察中">🟡 标准床位 24H 观察</option>
-                                  <option value="稳定">🟢 恢复室 (等待出院)</option>
-                              </select>
                           </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '16px', marginTop: '32px' }}>
-                          <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '14px', background: '#F1F5F9', border: 'none', borderRadius: '12px', fontWeight: 800, color: '#64748B', cursor: 'pointer' }}>取消</button>
-                          <button type="submit" style={{ flex: 1, padding: '14px', background: '#6366F1', border: 'none', borderRadius: '12px', fontWeight: 800, color: '#fff', cursor: 'pointer' }}>确认分配</button>
+                      <div style={{ display: 'flex', gap: '16px', marginTop: '48px' }}>
+                          <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '18px', background: '#F1F5F9', border: 'none', borderRadius: '18px', fontWeight: 800, color: '#64748B', cursor: 'pointer' }}>取消指令</button>
+                          <button type="submit" style={{ flex: 1, padding: '18px', background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', border: 'none', borderRadius: '18px', fontWeight: 900, color: '#fff', cursor: 'pointer', boxShadow: '0 12px 24px -6px rgba(79, 70, 229, 0.4)' }}>下达分配指令</button>
                       </div>
                   </form>
               </div>
           </div>
       )}
 
-      {/* Discharge Confirmation Modal */}
+      {/* 🏥 办理出院确认 - 深度美化版 */}
       {isDischargeModalOpen && inpatientToDischarge && (
-          <div className="overlay" style={{ zIndex: 1300 }} onClick={e => e.target === e.currentTarget && setIsDischargeModalOpen(false)}>
-              <div className="modal" style={{ width: '400px', borderRadius: '24px', padding: '32px', textAlign: 'center' }}>
-                  <div style={{ width: '80px', height: '80px', background: '#FEE2E2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', fontSize: '2.5rem' }}>🏥</div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 900, marginBottom: '8px', color: '#1E293B' }}>办理出院确认</h2>
-                  <p style={{ color: '#64748B', lineHeight: 1.6, marginBottom: '32px' }}>
-                      确定要为【<strong style={{color: '#1E293B'}}>{inpatientToDischarge.petName}</strong>】分配的病房 <strong style={{color: '#10B981'}}>{inpatientToDischarge.room}</strong> 办理结单出院并释放空床位吗？
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s' }}>
+              <div style={{ background: '#fff', width: '420px', borderRadius: '40px', padding: '48px', textAlign: 'center', boxShadow: '0 40px 100px -20px rgba(0,0,0,0.4)', animation: 'popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+                  <div style={{ width: '100px', height: '100px', background: '#DCFCE7', borderRadius: '35px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px auto', fontSize: '3rem' }}>🎉</div>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: 950, marginBottom: '12px', color: '#1E293B', letterSpacing: '-0.5px' }}>办理康复出院</h2>
+                  <p style={{ color: '#64748B', lineHeight: 1.8, marginBottom: '40px', fontWeight: 500 }}>
+                      确定要为【<strong style={{color: '#1E293B'}}>{inpatientToDischarge.petName}</strong>】办理结单出院并释放空床位 <strong style={{color: '#6366F1'}}>{inpatientToDischarge.room}</strong> 吗？
                   </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <button onClick={handleDischarge} style={{ padding: '14px', background: '#10B981', border: 'none', borderRadius: '12px', fontWeight: 800, color: '#fff', cursor: 'pointer' }}>✅ 确认康复出院并释放床位</button>
-                      <button onClick={() => setIsDischargeModalOpen(false)} style={{ padding: '14px', background: '#F1F5F9', border: 'none', borderRadius: '12px', fontWeight: 800, color: '#64748B', cursor: 'pointer' }}>取消操作</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <button onClick={handleDischarge} style={{ padding: '18px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', border: 'none', borderRadius: '18px', fontWeight: 900, color: '#fff', cursor: 'pointer', boxShadow: '0 12px 24px -6px rgba(16, 185, 129, 0.4)' }}>确认出院并自动结算</button>
+                      <button onClick={() => setIsDischargeModalOpen(false)} style={{ padding: '18px', background: '#F1F5F9', border: 'none', borderRadius: '18px', fontWeight: 800, color: '#64748B', cursor: 'pointer' }}>暂不出院</button>
                   </div>
               </div>
           </div>

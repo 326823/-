@@ -28,6 +28,7 @@ export interface Doctor {
   rating: number;
   status: '出诊中' | '手术中' | '休息' | '急救中' | '学术会';
   experience: string;
+  fee?: number;
 }
 
 export interface Medicine {
@@ -50,4 +51,5 @@ export interface Inpatient {
   admissionDate: string;
   status: '危重' | '稳定' | '观察中';
   doctorId: number;
+  phone?: string;
 }

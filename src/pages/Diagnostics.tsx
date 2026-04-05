@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { PetRecord } from '../types';
 
 const API_PETS = 'https://houduan-hlb1.onrender.com/records';
-const API_LAB = 'https://houduan-hlb1.onrender.com/lab_results';
+const API_LAB = 'https://houduan-hlb1.onrender.com/diagnostic_tests';
 const API_PACS = 'https://houduan-hlb1.onrender.com/imaging_studies';
 
 export default function Diagnostics() {
@@ -33,8 +33,9 @@ export default function Diagnostics() {
 
   useEffect(() => {
     fetch(API_PETS).then(res => res.json()).then(data => {
-      setPets(data || []);
-      if (data && data.length > 0) setSelectedPet(data[0]);
+      const petList = Array.isArray(data) ? data : [];
+      setPets(petList);
+      if (petList.length > 0) setSelectedPet(petList[0]);
     });
   }, []);
 
@@ -46,14 +47,18 @@ export default function Diagnostics() {
         fetch(`${API_PACS}?petId=${selectedPet.id}`).then(res => res.json())
       ]).then(([labs, pacs]) => {
         if (!isMounted) return;
-        setLabData(labs || []);
-        setPacsData(pacs || []);
+        setLabData(Array.isArray(labs) ? labs : []);
+        setPacsData(Array.isArray(pacs) ? pacs : []);
         
         // Auto-select first item if none selected
-        if (viewMode === 'LIS' && labs?.length > 0) setActiveExamId(labs[0].id);
-        else if (viewMode === 'PACS' && pacs?.length > 0) setActiveExamId(pacs[0].id);
+        if (viewMode === 'LIS' && Array.isArray(labs) && labs.length > 0) setActiveExamId(labs[0].id);
+        else if (viewMode === 'PACS' && Array.isArray(pacs) && pacs.length > 0) setActiveExamId(pacs[0].id);
         else setActiveExamId(null);
-      }).catch(err => console.error("Fetch error:", err));
+      }).catch(err => {
+        console.error("Fetch error:", err);
+        setLabData([]);
+        setPacsData([]);
+      });
     }
     return () => { isMounted = false; };
   }, [selectedPet, viewMode]);
@@ -69,7 +74,7 @@ export default function Diagnostics() {
       if (res.ok) {
         setIsAddLabModalOpen(false);
         const data = await fetch(`${API_LAB}?petId=${selectedPet.id}`).then(r => r.json());
-        setLabData(data || []);
+        setLabData(Array.isArray(data) ? data : []);
       }
     } catch {
       alert("化验保存失败");
@@ -100,8 +105,8 @@ export default function Diagnostics() {
   };
 
   const currentExam = viewMode === 'LIS' 
-    ? (labData || []).find(l => l.id === activeExamId) 
-    : (pacsData || []).find(p => p.id === activeExamId);
+    ? (Array.isArray(labData) ? labData : []).find(l => l.id === activeExamId) 
+    : (Array.isArray(pacsData) ? pacsData : []).find(p => p.id === activeExamId);
 
   return (
     <div className="page-container" style={{ padding: '0', display: 'flex', height: 'calc(100vh - 80px)', background: '#F1F5F9', overflow: 'hidden' }}>
@@ -146,7 +151,7 @@ export default function Diagnostics() {
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {(viewMode === 'LIS' ? (labData || []) : (pacsData || [])).map(item => (
+          {(viewMode === 'LIS' ? (Array.isArray(labData) ? labData : []) : (Array.isArray(pacsData) ? pacsData : [])).map(item => (
             <div 
               key={item.id} 
               onClick={() => setActiveExamId(item.id)}

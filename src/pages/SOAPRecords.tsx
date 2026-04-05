@@ -3,6 +3,7 @@ import { PetRecord, Medicine } from '../types';
 
 const API_RECORDS = 'https://houduan-hlb1.onrender.com/records';
 const API_MEDS = 'https://houduan-hlb1.onrender.com/medicines';
+const API_BASE = 'https://houduan-hlb1.onrender.com';
 
 export default function SOAPRecords() {
   const [pets, setPets] = useState<PetRecord[]>([]);
@@ -22,8 +23,9 @@ export default function SOAPRecords() {
 
   useEffect(() => {
     fetch(API_RECORDS).then(res => res.json()).then(data => {
-      setPets(data);
-      if (data.length > 0) setSelectedPet(data[0]);
+      const petList = Array.isArray(data) ? data : [];
+      setPets(petList);
+      if (petList.length > 0) setSelectedPet(petList[0]);
     });
     fetch(API_MEDS).then(res => res.json()).then(setMedicines);
   }, []);
@@ -150,6 +152,7 @@ export default function SOAPRecords() {
       petId: selectedPet.id,
       petName: selectedPet.petName,
       ownerName: selectedPet.ownerName,
+      ownerPhone: selectedPet.phone, // 👈 关键：关联手机号用于移动端查询同步
       visitNo: existingCount + 1,
       createdAt: new Date().toISOString(),
       ...pureEmr
